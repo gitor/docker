@@ -133,6 +133,7 @@ func postContainersKill(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	name = decodeName(name)
 	if err := srv.ContainerKill(name); err != nil {
 		return err
 	}
@@ -145,6 +146,7 @@ func getContainersExport(srv *Server, version float64, w http.ResponseWriter, r 
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	name = decodeName(name)
 
 	if err := srv.ContainerExport(name, w); err != nil {
 		utils.Debugf("%s", err)
@@ -555,6 +557,7 @@ func postContainersRestart(srv *Server, version float64, w http.ResponseWriter, 
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	name = decodeName(name)
 	if err := srv.ContainerRestart(name, t); err != nil {
 		return err
 	}
@@ -570,12 +573,18 @@ func deleteContainers(srv *Server, version float64, w http.ResponseWriter, r *ht
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	name = decodeName(name)
+
 	removeVolume, err := getBoolParam(r.Form.Get("v"))
 	if err != nil {
 		return err
 	}
+	removeLink, err := getBoolParam(r.Form.Get("link"))
+	if err != nil {
+		return err
+	}
 
-	if err := srv.ContainerDestroy(name, removeVolume); err != nil {
+	if err := srv.ContainerDestroy(name, removeVolume, removeLink); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -623,7 +632,7 @@ func postContainersStart(srv *Server, version float64, w http.ResponseWriter, r 
 	}
 	var err error
 	name := vars["name"]
-	name, err = url.QueryUnescape(name)
+	name = decodeName(name)
 	if err != nil {
 		return err
 	}
@@ -647,6 +656,7 @@ func postContainersStop(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	name = decodeName(name)
 
 	if err := srv.ContainerStop(name, t); err != nil {
 		return err
@@ -660,6 +670,8 @@ func postContainersWait(srv *Server, version float64, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	name = decodeName(name)
+
 	status, err := srv.ContainerWait(name)
 	if err != nil {
 		return err
@@ -719,6 +731,7 @@ func postContainersAttach(srv *Server, version float64, w http.ResponseWriter, r
 		return fmt.Errorf("Missing parameter")
 	}
 	name := vars["name"]
+	name = decodeName(name)
 
 	if _, err := srv.ContainerInspect(name); err != nil {
 		return err
@@ -1037,6 +1050,12 @@ func postContainerLink(srv *Server, version float64, w http.ResponseWriter, r *h
 
 	return nil
 }
+
+func decodeName(name string) string {
+	s, _ := url.QueryUnescape(name)
+	return s
+}
+
 func createRouter(srv *Server, logging bool) (*mux.Router, error) {
 	r := mux.NewRouter()
 
